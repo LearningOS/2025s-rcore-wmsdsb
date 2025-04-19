@@ -23,6 +23,8 @@ pub use task::{TaskControlBlock, TaskStatus};
 
 pub use context::TaskContext;
 
+const SYSCALL_MAX: usize = 411; // 假设最大系统调用 ID 为 410
+
 /// The task manager, where all the tasks are managed.
 ///
 /// Functions implemented on `TaskManager` deals with all task state transitions
@@ -36,7 +38,7 @@ pub struct TaskManager {
     /// total number of tasks
     num_app: usize,
     /// use inner value to get mutable access
-    inner: UPSafeCell<TaskManagerInner>,
+    pub inner: UPSafeCell<TaskManagerInner>,
 }
 
 /// Inner of Task Manager
@@ -44,7 +46,9 @@ pub struct TaskManagerInner {
     /// task list
     tasks: [TaskControlBlock; MAX_APP_NUM],
     /// id of current `Running` task
-    current_task: usize,
+    pub current_task: usize,
+    /// syscall counts for each task
+    pub syscall_counts: [[usize; SYSCALL_MAX]; MAX_APP_NUM],
 }
 
 lazy_static! {
@@ -59,12 +63,14 @@ lazy_static! {
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
             task.task_status = TaskStatus::Ready;
         }
+        let syscall_counts = [[0; SYSCALL_MAX]; MAX_APP_NUM];
         TaskManager {
             num_app,
             inner: unsafe {
                 UPSafeCell::new(TaskManagerInner {
                     tasks,
                     current_task: 0,
+                    syscall_counts,
                 })
             },
         }
